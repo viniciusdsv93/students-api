@@ -5,7 +5,7 @@ import { CreateStudentController } from "./create-student";
 
 const makeCreateStudentStub = (): ICreateStudent => {
 	class CreateStudentStub implements ICreateStudent {
-		async execute(studentData: CreateStudentModel): Promise<StudentModel> {
+		async execute(studentData: CreateStudentModel): Promise<StudentModel | null> {
 			return new Promise((resolve) => resolve(makeFakeStudentModel()));
 		}
 	}
@@ -97,6 +97,22 @@ describe("Create Student Controller", () => {
 		});
 	});
 
+	test("Should return 400 if an invalid gender value is provided", async () => {
+		const { sut } = makeSut();
+		const response = await sut.handle({
+			body: {
+				name: "valid_name",
+				email: "valid_email",
+				gender: "invalid_gender_option",
+				age: 25,
+			},
+		});
+		expect(response).toEqual({
+			statusCode: 400,
+			body: "invalid gender option provided",
+		});
+	});
+
 	test("Should call CreateStudentUsecase with correct values", async () => {
 		const { sut, createStudentStub } = makeSut();
 		const createStudentSpy = jest.spyOn(createStudentStub, "execute");
@@ -113,6 +129,60 @@ describe("Create Student Controller", () => {
 			email: "valid_email",
 			gender: "male",
 			age: 25,
+		});
+	});
+
+	test("Should return 201 on CreateStudentUsecase success", async () => {
+		const { sut } = makeSut();
+		const response = await sut.handle({
+			body: {
+				name: "valid_name",
+				email: "valid_email",
+				gender: "male",
+				age: 25,
+			},
+		});
+		expect(response).toEqual({
+			statusCode: 201,
+			body: makeFakeStudentModel(),
+		});
+	});
+
+	test("Should return 500 on CreateStudentUsecase failure", async () => {
+		const { sut, createStudentStub } = makeSut();
+		jest.spyOn(createStudentStub, "execute").mockReturnValueOnce(
+			new Promise((resolve) => resolve(null))
+		);
+		const response = await sut.handle({
+			body: {
+				name: "valid_name",
+				email: "valid_email",
+				gender: "male",
+				age: 25,
+			},
+		});
+		expect(response).toEqual({
+			statusCode: 500,
+			body: "error when trying to register user",
+		});
+	});
+
+	test("Should return 500 if CreateStudentUsecase throws", async () => {
+		const { sut, createStudentStub } = makeSut();
+		jest.spyOn(createStudentStub, "execute").mockReturnValueOnce(
+			new Promise((resolve, reject) => reject(new Error()))
+		);
+		const response = await sut.handle({
+			body: {
+				name: "valid_name",
+				email: "valid_email",
+				gender: "male",
+				age: 25,
+			},
+		});
+		expect(response).toEqual({
+			statusCode: 500,
+			body: "internal server error",
 		});
 	});
 });
